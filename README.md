@@ -105,7 +105,7 @@ See [docs/live_test.md](docs/live_test.md) for the copy-paste setup and full liv
 Add this repository as a Codex plugin marketplace:
 
 ```bash
-codex plugin marketplace add eiphy/codex-subagent-guard --ref v0.1.1
+codex plugin marketplace add eiphy/codex-subagent-guard --ref v0.1.2
 codex plugin add codex-subagent-guard --marketplace subagent-guard
 ```
 

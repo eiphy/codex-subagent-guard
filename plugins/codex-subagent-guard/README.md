@@ -34,4 +34,4 @@ Live behavior summary:
 - Unknown `agent_type`, missing message text, invalid config, or unresolved agent inference is denied with an actionable hint. Unresolved inference is allowed only when effective `fork_context = true` makes the call a full-history fork that inherits parent routing.
 - After install or hook trust changes, start a new Codex session before live testing.
 
-See the repository `docs/live_test.md` for a copy-paste full live test prompt covering denial, inference, built-ins, TOML overrides, optional field repair, and `fork_context` config.
+See https://github.com/eiphy/codex-subagent-guard/blob/v0.1.2/docs/live_test.md for a copy-paste full live test prompt covering denial, inference, built-ins, TOML overrides, optional field repair, and `fork_context` config.
