@@ -1,6 +1,6 @@
 {
   "name": "codex-subagent-guard",
-  "version": "0.1.0+codex.20260607061333",
+  "version": "0.1.0+codex.20260607062627",
   "description": "Guards spawn_agent calls by filling missing routing fields from Codex agent TOML files or rejecting unresolved delegation.",
   "author": {
     "name": "eiphy"
