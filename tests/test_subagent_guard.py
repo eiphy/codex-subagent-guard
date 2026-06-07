@@ -358,9 +358,6 @@ class SubagentGuardTests(unittest.TestCase):
         self.assertNotIn("agent_type", updated)
         self.assertNotIn("model", updated)
         self.assertNotIn("reasoning_effort", updated)
-        self.assertNotIn("agent_type", updated)
-        self.assertNotIn("model", updated)
-        self.assertNotIn("reasoning_effort", updated)
 
     def test_project_config_fork_context_true_allows_unresolved_message(self):
         hook = load_hook_module()
@@ -427,7 +424,11 @@ class SubagentGuardTests(unittest.TestCase):
             output = hook.evaluate_event(event, env={})
 
         updated = output["hookSpecificOutput"]["updatedInput"]
+        self.assertEqual(updated["message"], "Use the explorer role for a bounded scan.")
         self.assertIs(updated["fork_context"], True)
+        self.assertNotIn("agent_type", updated)
+        self.assertNotIn("model", updated)
+        self.assertNotIn("reasoning_effort", updated)
 
     def test_user_config_applies_when_project_config_is_absent(self):
         hook = load_hook_module()

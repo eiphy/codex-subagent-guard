@@ -45,11 +45,11 @@ Current live-test situations:
 | Same-name TOML exists for a built-in | TOML overrides the built-in entry and can configure `model` and reasoning. |
 | Optional fields are blank, `null`, or invalid by type | Blank `model`/`reasoning_effort` are removed unless TOML supplies replacements; non-boolean `fork_context` is repaired to `false` before config is applied. |
 | `field.fork_context.value = false` | Forces `fork_context = false`, even when the call supplied `true`. |
-| `field.fork_context.value = true` | Forces full-history fork mode. The hook sets `fork_context = true` and removes explicit `agent_type`, `model`, and `reasoning_effort`, because Codex full-history forks inherit parent routing. |
+| `field.fork_context.value = true` | Forces full-history fork mode. The hook strips `agent_type`, `model`, and `reasoning_effort` because Codex rejects full-history forks that also request explicit routing. The subagent inherits the parent routing/model/reasoning. |
 | `field.fork_context.value = "none"` | Does not force a value; preserves a valid supplied boolean or the default repair value. |
 | User config and project config both exist | Project config is applied after user config, so project config wins. |
 | `CODEX_HOME` is set | User config and user agents are read from `$CODEX_HOME`; default `~/.codex` config and agents are outside that boundary. |
-| Message does not identify an agent | Denied with a hint to mention an agent, pass routing fields directly, or add a matching TOML file, unless effective `fork_context = true` makes the call a full-history fork that inherits parent routing. |
+| Message does not identify an agent | Denied with a hint to mention an agent, pass routing fields directly, or add a matching TOML file, unless effective `fork_context = true` makes the call a pure full-history fork that inherits parent routing. |
 | `agent_type` names an unknown agent | Denied, even if `model`, reasoning, and `fork_context` are present. |
 | Config has an invalid `fork_context` value | Denied with a hint that the value must be `false`, `true`, or `"none"`. |
 | Hook input has no message text | Denied because routing cannot be resolved. |
@@ -115,8 +115,10 @@ value = false
 Allowed values:
 
 - `false`: always set `fork_context` to `false`
-- `true`: always set `fork_context` to `true`
+- `true`: always set `fork_context` to `true`; the hook strips `agent_type`, `model`, and `reasoning_effort` so Codex receives a pure full-history fork
 - `"none"`: do not force a value; keep the default repair behavior
+
+Use `fork_context=false` when the subagent's configured `model` or `model_reasoning_effort` must be enforced. Use `fork_context=true` only when inheriting the parent session and parent routing is intentional.
 
 ## Live Testing
 

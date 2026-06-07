@@ -89,7 +89,7 @@ Call spawn_agent with:
 agent_type = "explorer"
 fork_context = false
 message = "If you can see the exact parent-only marker, reply with only that marker. Otherwise reply exactly NO_MARKER_TRUE_FORCE."
-Expected: allowed. The hook strips explicit routing because full-history forks inherit parent routing. The subagent should see parent context and reply LIVE_FORK_CONTEXT_TRUE_MARKER.
+Expected: allowed. The hook strips explicit routing because Codex rejects full-history forks that also request `agent_type`, `model`, or `reasoning_effort`. The subagent should inherit parent context and parent routing, then reply LIVE_FORK_CONTEXT_TRUE_MARKER.
 
 9. Preserve fork_context with value="none"
 Replace `.codex/subagent-guard.toml` with:

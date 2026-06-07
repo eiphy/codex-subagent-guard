@@ -29,9 +29,9 @@ Live behavior summary:
 - Explicit message patterns such as `Use the explorer role`, `Use the explorer agent`, `agent_type: explorer`, `agent = explorer`, `subagent: explorer`, `spawn explorer`, and `` `explorer` `` can infer `agent_type`.
 - Agent names with spaces, hyphens, or underscores match the same configured name.
 - Missing or invalid `fork_context` is repaired to `false` unless config forces `true`, forces `false`, or uses `"none"` to preserve the repaired or supplied value.
-- Effective `fork_context = true` strips `agent_type`, `model`, and `reasoning_effort`, because Codex full-history forks inherit parent routing.
+- Effective `fork_context = true` strips `agent_type`, `model`, and `reasoning_effort`, because Codex rejects full-history forks that also request explicit routing. The subagent inherits the parent agent type, model, and reasoning effort. Use `fork_context=false` when subagent TOML routing must be enforced.
 - Blank `model` and `reasoning_effort` are removed unless the resolved TOML supplies replacements.
-- Unknown `agent_type`, missing message text, invalid config, or unresolved agent inference is denied with an actionable hint. Unresolved inference is allowed only when effective `fork_context = true` makes the call a full-history fork that inherits parent routing.
+- Unknown `agent_type`, missing message text, invalid config, or unresolved agent inference is denied with an actionable hint. Unresolved inference is allowed only when effective `fork_context = true` makes the call a pure full-history fork that inherits parent routing.
 - After install or hook trust changes, start a new Codex session before live testing.
 
 See https://github.com/eiphy/codex-subagent-guard/blob/v0.1.2/docs/live_test.md for a copy-paste full live test prompt covering denial, inference, built-ins, TOML overrides, optional field repair, and `fork_context` config.
