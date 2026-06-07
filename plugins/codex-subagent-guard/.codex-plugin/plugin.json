@@ -1,0 +1,29 @@
+{
+  "name": "codex-subagent-guard",
+  "version": "0.1.0+codex.20260607061333",
+  "description": "Guards spawn_agent calls by filling missing routing fields from Codex agent TOML files or rejecting unresolved delegation.",
+  "author": {
+    "name": "eiphy"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/eiphy/codex-subagent-guard",
+  "keywords": [
+    "codex",
+    "hooks",
+    "subagents",
+    "delegation"
+  ],
+  "interface": {
+    "displayName": "Subagent Guard",
+    "shortDescription": "Repairs missing spawn_agent routing fields.",
+    "longDescription": "Validates spawn_agent tool calls before delegation. When routing fields are missing, it resolves the target subagent from built-in names, ~/.codex/agents, or project .codex/agents TOML files. It fills model and reasoning only when configured, and rejects unresolved calls with a clear hint.",
+    "developerName": "ei",
+    "category": "Productivity",
+    "capabilities": [
+      "Read"
+    ],
+    "defaultPrompt": [
+      "Use Subagent Guard to validate spawn_agent routing before delegating."
+    ]
+  }
+}

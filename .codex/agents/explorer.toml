@@ -1,0 +1,5 @@
+name = "explorer"
+description = "Configured explorer for codex-subagent-guard live tests."
+developer_instructions = "Reply exactly as requested during live tests."
+model = "gpt-5.5"
+model_reasoning_effort = "high"

@@ -1,0 +1,20 @@
+{
+  "name": "subagent-guard",
+  "interface": {
+    "displayName": "Subagent Guard"
+  },
+  "plugins": [
+    {
+      "name": "codex-subagent-guard",
+      "source": {
+        "source": "local",
+        "path": "./plugins/codex-subagent-guard"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

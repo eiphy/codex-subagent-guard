@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "^spawn_agent$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${PLUGIN_ROOT}/hooks/subagent_guard.py",
+            "timeout": 10,
+            "statusMessage": "Checking spawn_agent routing"
+          }
+        ]
+      }
+    ]
+  }
+}

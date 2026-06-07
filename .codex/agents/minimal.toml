@@ -1,0 +1,3 @@
+name = "minimal"
+description = "Minimal agent for codex-subagent-guard live tests."
+developer_instructions = "Reply exactly as requested during live tests."
