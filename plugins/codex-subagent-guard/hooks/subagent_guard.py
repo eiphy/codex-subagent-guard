@@ -35,9 +35,24 @@ class AgentConfig:
         self.source = source
 
 
+class AgentRoutingDefaults:
+    def __init__(
+        self,
+        model: str | None,
+        reasoning_effort: str | None,
+    ) -> None:
+        self.model = model
+        self.reasoning_effort = reasoning_effort
+
+
 class GuardConfig:
-    def __init__(self, fork_context_value: object = CONFIG_UNSET) -> None:
+    def __init__(
+        self,
+        fork_context_value: object = CONFIG_UNSET,
+        agent_defaults: Mapping[str, AgentRoutingDefaults] | None = None,
+    ) -> None:
         self.fork_context_value = fork_context_value
+        self.agent_defaults = dict(agent_defaults or {})
 
 
 BUILT_IN_AGENTS: tuple[AgentConfig, ...] = (
@@ -63,6 +78,8 @@ BUILT_IN_AGENTS: tuple[AgentConfig, ...] = (
         source=None,
     ),
 )
+
+BUILT_IN_AGENT_NAMES = frozenset(agent.name for agent in BUILT_IN_AGENTS)
 
 
 def evaluate_event(
@@ -91,7 +108,7 @@ def evaluate_event(
     except ConfigError as exc:
         return _deny(str(exc))
 
-    agents = discover_agents(cwd, active_env)
+    agents = discover_agents(cwd, active_env, config)
     agent_name = _optional_string(updated.get("agent_type"))
     if agent_name and agent_name not in agents:
         return _deny(_unknown_agent_reason(agent_name))
@@ -139,11 +156,20 @@ def load_guard_config(cwd: Path, env: Mapping[str, str]) -> GuardConfig:
         file_config = _read_guard_config(path)
         if file_config.fork_context_value is not CONFIG_UNSET:
             config.fork_context_value = file_config.fork_context_value
+        _merge_agent_defaults(config.agent_defaults, file_config.agent_defaults)
     return config
 
 
-def discover_agents(cwd: Path, env: Mapping[str, str]) -> dict[str, AgentConfig]:
-    agents = {agent.name: agent for agent in BUILT_IN_AGENTS}
+def discover_agents(
+    cwd: Path,
+    env: Mapping[str, str],
+    config: GuardConfig | None = None,
+) -> dict[str, AgentConfig]:
+    agent_defaults = {} if config is None else config.agent_defaults
+    agents = {
+        agent.name: _apply_builtin_defaults(agent, agent_defaults.get(agent.name))
+        for agent in BUILT_IN_AGENTS
+    }
     for directory in _agent_dirs(cwd, env):
         for path in sorted(directory.glob("*.toml")):
             agent = _read_agent(path)
@@ -199,10 +225,99 @@ def _read_guard_config(path: Path) -> GuardConfig:
             f"Could not parse subagent guard config {path}: {exc}"
         ) from exc
 
+    config = GuardConfig(agent_defaults=_read_agent_defaults(data, path))
     value = _nested_config_value(data, ("field", "fork_context", "value"))
-    if value is CONFIG_UNSET:
-        return GuardConfig()
-    return GuardConfig(fork_context_value=_parse_fork_context_value(value, path))
+    if value is not CONFIG_UNSET:
+        config.fork_context_value = _parse_fork_context_value(value, path)
+    return config
+
+
+def _apply_builtin_defaults(
+    agent: AgentConfig,
+    defaults: AgentRoutingDefaults | None,
+) -> AgentConfig:
+    if defaults is None:
+        return agent
+    return AgentConfig(
+        name=agent.name,
+        description=agent.description,
+        model=defaults.model or agent.model,
+        reasoning_effort=defaults.reasoning_effort or agent.reasoning_effort,
+        source=agent.source,
+    )
+
+
+def _merge_agent_defaults(
+    target: dict[str, AgentRoutingDefaults],
+    incoming: Mapping[str, AgentRoutingDefaults],
+) -> None:
+    for name, defaults in incoming.items():
+        current = target.get(name)
+        if current is None:
+            target[name] = defaults
+            continue
+        target[name] = AgentRoutingDefaults(
+            model=defaults.model or current.model,
+            reasoning_effort=defaults.reasoning_effort or current.reasoning_effort,
+        )
+
+
+def _read_agent_defaults(
+    data: Mapping[str, object],
+    path: Path,
+) -> dict[str, AgentRoutingDefaults]:
+    agent_table = data.get("agent")
+    if agent_table is None:
+        return {}
+    if not isinstance(agent_table, dict):
+        raise ConfigError(f"{path}: agent must be a table.")
+
+    defaults: dict[str, AgentRoutingDefaults] = {}
+    for name, table in agent_table.items():
+        if name not in BUILT_IN_AGENT_NAMES:
+            known_agents = ", ".join(sorted(BUILT_IN_AGENT_NAMES))
+            raise ConfigError(
+                f"{path}: agent.{name} is not a configurable built-in agent; "
+                f"expected one of: {known_agents}."
+            )
+        if not isinstance(table, dict):
+            raise ConfigError(f"{path}: agent.{name} must be a table.")
+
+        model = _optional_config_string(table, "model", f"agent.{name}.model", path)
+        reasoning_effort = (
+            _optional_config_string(
+                table,
+                "reasoning_effort",
+                f"agent.{name}.reasoning_effort",
+                path,
+            )
+            or _optional_config_string(
+                table,
+                "model_reasoning_effort",
+                f"agent.{name}.model_reasoning_effort",
+                path,
+            )
+        )
+        if model or reasoning_effort:
+            defaults[name] = AgentRoutingDefaults(
+                model=model,
+                reasoning_effort=reasoning_effort,
+            )
+    return defaults
+
+
+def _optional_config_string(
+    table: Mapping[str, object],
+    key: str,
+    label: str,
+    path: Path,
+) -> str | None:
+    if key not in table:
+        return None
+    value = _optional_string(table[key])
+    if value:
+        return value
+    raise ConfigError(f"{path}: {label} must be a non-empty string.")
 
 
 def _nested_config_value(data: object, path: tuple[str, ...]) -> object:
@@ -258,11 +373,20 @@ def _repair_optional_string_field(
     field_name: str,
     configured_value: str | None,
 ) -> None:
-    if _optional_string(updated_input.get(field_name)):
+    if _explicit_optional_routing_value(updated_input.get(field_name)):
         return
     updated_input.pop(field_name, None)
     if configured_value:
         updated_input[field_name] = configured_value
+
+
+def _explicit_optional_routing_value(value: object) -> str | None:
+    text = _optional_string(value)
+    if text is None:
+        return None
+    if text.lower() in ("inherit", "inherited"):
+        return None
+    return text
 
 
 def infer_agent_names(

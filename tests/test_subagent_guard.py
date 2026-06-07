@@ -145,6 +145,82 @@ class SubagentGuardTests(unittest.TestCase):
         self.assertNotIn("model", updated)
         self.assertNotIn("reasoning_effort", updated)
 
+    def test_project_config_can_configure_builtin_agent_defaults(self):
+        hook = load_hook_module()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            config_dir = cwd / ".codex"
+            config_dir.mkdir()
+            (config_dir / "subagent-guard.toml").write_text(
+                "\n".join(
+                    [
+                        "[agent.default]",
+                        'model = "gpt-5.5"',
+                        'model_reasoning_effort = "medium"',
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            event = {
+                "hook_event_name": "PreToolUse",
+                "tool_name": "spawn_agent",
+                "cwd": str(cwd),
+                "tool_input": {
+                    "message": "Use the default role for a bounded task.",
+                },
+            }
+
+            output = hook.evaluate_event(event, env={})
+
+        self.assertEqual(
+            output["hookSpecificOutput"]["permissionDecision"],
+            "allow",
+        )
+        updated = output["hookSpecificOutput"]["updatedInput"]
+        self.assertEqual(updated["agent_type"], "default")
+        self.assertEqual(updated["model"], "gpt-5.5")
+        self.assertEqual(updated["reasoning_effort"], "medium")
+        self.assertIs(updated["fork_context"], False)
+
+    def test_inherited_optional_fields_are_repaired_from_builtin_config(self):
+        hook = load_hook_module()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            config_dir = cwd / ".codex"
+            config_dir.mkdir()
+            (config_dir / "subagent-guard.toml").write_text(
+                "\n".join(
+                    [
+                        "[agent.explorer]",
+                        'model = "gpt-5.4-mini"',
+                        'model_reasoning_effort = "medium"',
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            event = {
+                "hook_event_name": "PreToolUse",
+                "tool_name": "spawn_agent",
+                "cwd": str(cwd),
+                "tool_input": {
+                    "message": "Use the explorer role for a bounded scan.",
+                    "agent_type": "explorer",
+                    "model": "inherited",
+                    "reasoning_effort": "inherited",
+                    "fork_context": False,
+                },
+            }
+
+            output = hook.evaluate_event(event, env={})
+
+        updated = output["hookSpecificOutput"]["updatedInput"]
+        self.assertEqual(updated["agent_type"], "explorer")
+        self.assertEqual(updated["model"], "gpt-5.4-mini")
+        self.assertEqual(updated["reasoning_effort"], "medium")
+        self.assertIs(updated["fork_context"], False)
+
     def test_custom_agent_toml_can_configure_builtin_agent_routing(self):
         hook = load_hook_module()
 
@@ -467,6 +543,53 @@ class SubagentGuardTests(unittest.TestCase):
 
         updated = output["hookSpecificOutput"]["updatedInput"]
         self.assertIs(updated["fork_context"], True)
+
+    def test_project_builtin_defaults_merge_per_field_with_user_config(self):
+        hook = load_hook_module()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp) / "project"
+            codex_home = Path(tmp) / "codex-home"
+            config_dir = cwd / ".codex"
+            config_dir.mkdir(parents=True)
+            codex_home.mkdir()
+            (codex_home / "subagent-guard.toml").write_text(
+                "\n".join(
+                    [
+                        "[agent.worker]",
+                        'model = "gpt-5.4-mini"',
+                        'model_reasoning_effort = "medium"',
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            (config_dir / "subagent-guard.toml").write_text(
+                "\n".join(
+                    [
+                        "[agent.worker]",
+                        'model = "gpt-5.4"',
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            event = {
+                "hook_event_name": "PreToolUse",
+                "tool_name": "spawn_agent",
+                "cwd": str(cwd),
+                "tool_input": {
+                    "message": "Use the worker role for a bounded task.",
+                },
+            }
+
+            output = hook.evaluate_event(
+                event,
+                env={"CODEX_HOME": str(codex_home)},
+            )
+
+        updated = output["hookSpecificOutput"]["updatedInput"]
+        self.assertEqual(updated["agent_type"], "worker")
+        self.assertEqual(updated["model"], "gpt-5.4")
+        self.assertEqual(updated["reasoning_effort"], "medium")
 
     def test_project_config_overrides_user_config(self):
         hook = load_hook_module()

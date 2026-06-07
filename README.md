@@ -11,7 +11,7 @@ Codex CLI does not respect subagents' model and reasoning levels. This plugin fi
 Add this repository as a Codex plugin marketplace:
 
 ```bash
-codex plugin marketplace add eiphy/codex-subagent-guard --ref v0.1.2
+codex plugin marketplace add eiphy/codex-subagent-guard --ref v0.1.3
 codex plugin add codex-subagent-guard --marketplace subagent-guard
 ```
 
@@ -22,6 +22,8 @@ codex plugin marketplace add /absolute/path/to/codex-subagent-guard
 codex plugin add codex-subagent-guard --marketplace subagent-guard
 ```
 
+Local marketplace installs are not editable installs. After changing plugin source, run `codex plugin add codex-subagent-guard --marketplace subagent-guard` again and start a new Codex session so hooks load the refreshed installed package.
+
 After installing, start a new Codex session and review/trust the plugin hook with `/hooks`.
 
 When a `spawn_agent` call is missing routing fields, the hook tries to resolve the intended subagent from Codex agent TOML files or built-in agent names and fills:
@@ -29,7 +31,7 @@ When a `spawn_agent` call is missing routing fields, the hook tries to resolve t
 - `agent_type`
 - `fork_context`
 
-If the resolved agent TOML specifies `model` or `model_reasoning_effort`, the hook fills those too. If those fields are not configured, the hook omits them and lets Codex choose its normal defaults.
+If the resolved agent TOML specifies `model` or `model_reasoning_effort`, the hook fills those too. Built-in `default`, `worker`, and `explorer` can also receive model defaults from `subagent-guard.toml` without replacing their built-in instructions. If neither TOML source configures those fields, the hook omits them and lets Codex choose its normal defaults.
 
 If it cannot resolve the subagent safely, it rejects the call with a hint instead of allowing an under-specified delegation.
 
@@ -41,9 +43,10 @@ Current live-test situations:
 | --- | --- |
 | Message says `Use the reviewer role` and a matching TOML exists | Fills `agent_type`, `fork_context`, and configured `model`/`reasoning_effort`. |
 | Message says `Use the reviewer role` and TOML omits `model` and reasoning | Fills `agent_type` and `fork_context`; omits `model` and `reasoning_effort`. |
-| Message names built-in `default`, `worker`, or `explorer` | Recognized by name only; no hardcoded `model` or reasoning is added. |
+| Message names built-in `default`, `worker`, or `explorer` and `[agent.<name>]` is configured | Fills `agent_type`, `fork_context`, and configured built-in `model`/`reasoning_effort` without replacing built-in instructions. |
+| Message names built-in `default`, `worker`, or `explorer` and no built-in config exists | Recognized by name only; no hardcoded `model` or reasoning is added. |
 | Same-name TOML exists for a built-in | TOML overrides the built-in entry and can configure `model` and reasoning. |
-| Optional fields are blank, `null`, or invalid by type | Blank `model`/`reasoning_effort` are removed unless TOML supplies replacements; non-boolean `fork_context` is repaired to `false` before config is applied. |
+| Optional fields are blank, `null`, invalid by type, `inherit`, or `inherited` | Blank or inherited `model`/`reasoning_effort` are removed unless config supplies replacements; non-boolean `fork_context` is repaired to `false` before config is applied. |
 | `field.fork_context.value = false` | Forces `fork_context = false`, even when the call supplied `true`. |
 | `field.fork_context.value = true` | Forces full-history fork mode. The hook strips `agent_type`, `model`, and `reasoning_effort` because Codex rejects full-history forks that also request explicit routing. The subagent inherits the parent routing/model/reasoning. |
 | `field.fork_context.value = "none"` | Does not force a value; preserves a valid supplied boolean or the default repair value. |
@@ -70,7 +73,23 @@ Built-in fallback agents are also recognized:
 - `worker`
 - `explorer`
 
-Built-ins are recognized by name only. The hook does not assign model or reasoning defaults for them. Define an agent TOML with the same `name` to configure a built-in:
+Built-ins are recognized by name only unless their routing defaults are configured in `subagent-guard.toml`:
+
+```toml
+[agent.default]
+model = "gpt-5.5"
+model_reasoning_effort = "medium"
+
+[agent.worker]
+model = "gpt-5.4"
+model_reasoning_effort = "high"
+
+[agent.explorer]
+model = "gpt-5.4-mini"
+model_reasoning_effort = "medium"
+```
+
+Only `default`, `worker`, and `explorer` are accepted in `[agent.<name>]` config. Same-name agent TOML still takes precedence over built-in defaults because it replaces the built-in entry:
 
 ```toml
 name = "explorer"
