@@ -2,6 +2,28 @@
 
 Codex Subagent Guard is a Codex plugin that validates `spawn_agent` calls before delegation.
 
+## Motivation
+
+Codex CLI does not respect subagents' model and reasoning levels. This plugin fixes that.
+
+## Install
+
+Add this repository as a Codex plugin marketplace:
+
+```bash
+codex plugin marketplace add eiphy/codex-subagent-guard --ref v0.1.2
+codex plugin add codex-subagent-guard --marketplace subagent-guard
+```
+
+During local development from this checkout:
+
+```bash
+codex plugin marketplace add /absolute/path/to/codex-subagent-guard
+codex plugin add codex-subagent-guard --marketplace subagent-guard
+```
+
+After installing, start a new Codex session and review/trust the plugin hook with `/hooks`.
+
 When a `spawn_agent` call is missing routing fields, the hook tries to resolve the intended subagent from Codex agent TOML files or built-in agent names and fills:
 
 - `agent_type`
@@ -99,24 +121,6 @@ Allowed values:
 ## Live Testing
 
 See [docs/live_test.md](docs/live_test.md) for the copy-paste setup and full live test prompt.
-
-## Install
-
-Add this repository as a Codex plugin marketplace:
-
-```bash
-codex plugin marketplace add eiphy/codex-subagent-guard --ref v0.1.2
-codex plugin add codex-subagent-guard --marketplace subagent-guard
-```
-
-During local development from this checkout:
-
-```bash
-codex plugin marketplace add /absolute/path/to/codex-subagent-guard
-codex plugin add codex-subagent-guard --marketplace subagent-guard
-```
-
-After installing, start a new Codex session and review/trust the plugin hook with `/hooks`.
 
 ## Test
 
